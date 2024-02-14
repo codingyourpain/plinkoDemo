@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity WebGL Player | plinko</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <!--
+      <link rel="stylesheet" href="TemplateData/style.css">
+    -->
+    <style>
+      table {
+        border: solid  1px;
+        background: #1e1e1e;
+        margin-bottom: 50px;
+      }
+      th {
+        color: aliceblue;
+      }
+      #unity-container {
+        position: relative;
+      }
+      #unity-fullscreen-button {
+        cursor:pointer;
+        width: 38px;
+        height: 38px;
+        background: url('TemplateData/fullscreen-button.png') no-repeat center
+      }
+    </style>
+  </head>
+  <body>
+    <table>
+      <tr>
+        <th>Name</th>
+        <th>Parameter</th>
+        <th>Functions</th>
+      </tr>
+      <tr>
+        <th>Update Username</th>
+        <th><input type="text" id="username"></th>
+        <th><button id="updateUsername">Update Username</button></th>
+      </tr>
+      <tr>
+        <th>Spawn Function Test</th>
+        <th>
+          <table>
+          <tr>
+              <th>T1</th>
+              <th>T2</th>
+              <th>T3</th>
+              <th>T4</th>
+            </tr>
+            <tr>
+              <th><input type="number" id="t1count"></th>
+              <th><input type="number" id="t2count"></th>
+              <th><input type="number" id="t3count"></th>
+              <th><input type="number" id="t4count"></th>
+            </tr>
+          </table>
+        </th>
+        <th>
+          <table>
+            <tr>
+              <th>T1</th>
+              <th>T2</th>
+              <th>T3</th>
+              <th>T4</th>
+            </tr>
+            
+            <tr>
+            <th><button id="t1">t1</button></th>
+            <th><button id="t2">t2</button></th>
+            <th><button id="t3">t3</button></th>
+            <th><button id="t4">t4</button></th>
+            </tr>
+          </table>
+        </th>
+        <tr>
+          <th>Icon Update</th>
+          <th>
+            <table>
+              <tr>
+                <th>Update Team 1 Icon</th>
+                <th>Update Team 2 Icon</th>
+                <th>Update Team 3 Icon</th>
+                <th>Update Team 4 Icon</th>
+              </tr>
+              <tr>
+                <th><input type="text" id="t1Icon"></th>
+                <th><input type="text" id="t2Icon"></th>
+                <th><input type="text" id="t3Icon"></th>
+                <th><input type="text" id="t4Icon"></th>
+              </tr>
+            </table>
+          </th>
+          <th><button id="updateIcons">Update Icons</button></th>
+        </tr>
+      </tr>
+      <tr>
+        <th>Update background</th>
+        <th><input type="text" id="bgurl"></th>
+        <th><button id="updatebg">Update Background</button></th>
+      </tr>
+    </table>
+    <div id="unity-container" class="unity-desktop">
+      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+      <div id="unity-footer">
+        <div id="unity-webgl-logo"></div>
+        <div id="unity-fullscreen-button"></div>
+        <div id="unity-build-title">plinko</div>
+      </div>
+    </div>
+    <script>
+
+      var container = document.querySelector("#unity-container");
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var fullscreenButton = document.querySelector("#unity-fullscreen-button");
+      var warningBanner = document.querySelector("#unity-warning");
+
+      // Shows a temporary message banner/ribbon for a few seconds, or
+      // a permanent error message on top of the canvas if type=='error'.
+      // If type=='warning', a yellow highlight color is used.
+      // Modify or remove this function to customize the visually presented
+      // way that non-critical warnings and error messages are presented to the
+      // user.
+      function unityShowBanner(msg, type) {
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/plinko.loader.js";
+      var config = {
+        dataUrl: buildUrl + "/plinko.data",
+        frameworkUrl: buildUrl + "/plinko.framework.js",
+        codeUrl: buildUrl + "/plinko.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "plinko",
+        productVersion: "0.1",
+        showBanner: unityShowBanner,
+      };
+
+      // By default, Unity keeps WebGL canvas render target size matched with
+      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
+      // Set this to false if you want to decouple this synchronization from
+      // happening inside the engine, and you would instead like to size up
+      // the canvas DOM size and WebGL render target sizes yourself.
+      // config.matchWebGLToCanvasSize = false;
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        // Mobile device style: fill the whole browser client area with the game canvas:
+
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+        container.className = "unity-mobile";
+        canvas.className = "unity-mobile";
+
+        // To lower canvas resolution on mobile devices to gain some
+        // performance, uncomment the following line:
+        // config.devicePixelRatio = 1;
+
+
+      } else {
+        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
+
+        canvas.style.width = "960px";
+        canvas.style.height = "600px";
+      }
+
+      loadingBar.style.display = "block";
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        
+        var t1 = document.getElementById("t1");
+        var t2 = document.getElementById("t2");
+        var t3 = document.getElementById("t3");
+        var t4 = document.getElementById("t4");
+        //var updateIcons =document.getElementById("updateIcons");
+        var fb = [];
+        var gs = [];
+        var bjk = [];
+        var ts = [];
+
+        var tasks = [];
+
+        var username = "";
+        var updateUsername =document.getElementById("updateUsername");
+        var updateIcons = document.getElementById("updateIcons");
+        var updatebg = document.getElementById("updatebg");
+
+        var data = {};
+        
+        createUnityInstance(canvas, config, (progress) => {
+          progressBarFull.style.width = 100 * progress + "%";
+              }).then((unityInstance) => {
+                loadingBar.style.display = "none";
+                fullscreenButton.onclick = () => {
+                  unityInstance.SetFullscreen(1);
+                };
+                t1.onclick = () => {
+                  if (document.getElementById("t1count").value > 0) 
+                    tasks.push(fbsend(document.getElementById("t1count").value));
+                  else tasks.push(fbsend(1));
+                };
+                t2.onclick = () => {
+                  if (document.getElementById("t2count").value > 0) 
+                    tasks.push(gssend(document.getElementById("t2count").value));
+                  else tasks.push(gssend(1));
+                };
+                t3.onclick = () => {
+                  if (document.getElementById("t3count").value > 0) 
+                    tasks.push(bjksend(document.getElementById("t3count").value));
+                  else tasks.push(bjksend(1));
+                };
+                t4.onclick = () => {
+                  if (document.getElementById("t4count").value > 0) 
+                    tasks.push(tssend(document.getElementById("t4count").value));
+                  else tasks.push(tssend(1));
+                };
+                
+                updateIcons.onclick = async () => {
+                  if (document.getElementById("t1Icon").value != ""){
+                    await unityInstance.SendMessage('GameObject (1)','LoadTeam1Textures',document.getElementById("t1Icon").value);
+                  }
+                  if (document.getElementById("t2Icon").value != ""){
+                    await unityInstance.SendMessage('GameObject (1)','LoadTeam2Textures',document.getElementById("t1Icon").value);
+                  }
+                  if (document.getElementById("t3Icon").value != ""){
+                    await unityInstance.SendMessage('GameObject (1)','LoadTeam3Textures',document.getElementById("t1Icon").value);
+                  }
+                  if (document.getElementById("t4Icon").value != ""){
+                    await unityInstance.SendMessage('GameObject (1)','LoadTeam4Textures',document.getElementById("t1Icon").value);
+                  }
+                };
+                
+                updateUsername.onclick = () => {
+                  console.log("updated");
+                  username =document.getElementById("username").value;
+                };
+                
+                updatebg.onclick = async () => {
+                  if (document.getElementById("bgurl").value != ""){
+                    await unityInstance.SendMessage('GameObject (1)','LoadBackgroundTexture',document.getElementById("bgurl").value);
+                  }
+                };
+
+                function fbsend(count) {
+                  var c =count;
+                  var counter=setInterval(timer, 250); //1000 will  run it every 1 second
+                  async function timer()
+                  {
+                    c=c-1;
+                    await unityInstance.SendMessage('GameObject (1)','spawnBallLikeTeam1');
+                    if (c <= 0)
+                    {
+                      //tasks.splice( tasks.indexOf(0,1), 1 );
+                      clearInterval(counter);
+                      //counter ended, do something here
+                      return;
+                    }
+                    //Do code for showing the number of seconds here
+                  }
+                }
+                function gssend(count) {
+                  var c =count;
+                  var counter=setInterval(timer, 250); //1000 will  run it every 1 second
+                  async function timer()
+                  {
+                    c=c-1;
+                    await unityInstance.SendMessage('GameObject (1)','spawnBallLikeTeam2');
+                    if (c <= 0)
+                    {
+                      tasks.splice( tasks.indexOf(0,1), 1 );
+                      clearInterval(counter);
+                      //counter ended, do something here
+                      return;
+                    }
+                    //Do code for showing the number of seconds here
+                  }
+                }
+                function bjksend(count) {
+                  var c =count;
+                  var counter=setInterval(timer, 250); //1000 will  run it every 1 second
+                  async function timer()
+                  {
+                    c=c-1;
+                    await unityInstance.SendMessage('GameObject (1)','spawnBallLikeTeam3');
+                    if (c <= 0)
+                    {
+                      tasks.splice( tasks.indexOf(0,1), 1 );
+                      clearInterval(counter);
+                      //counter ended, do something here
+                      return;
+                    }
+                    //Do code for showing the number of seconds here
+                  }
+                }
+                function tssend(count) {
+                  var c =count;
+                  var counter=setInterval(timer, 250); //1000 will  run it every 1 second
+                  async function timer()
+                  {
+                    c=c-1;
+                    await unityInstance.SendMessage('GameObject (1)','spawnBallLikeTeam4');
+                    if (c <= 0)
+                    {
+                      tasks.splice( tasks.indexOf(0,1), 1 );
+                      clearInterval(counter);
+                      //counter ended, do something here
+                      return;
+                    }
+                    //Do code for showing the number of seconds here
+                  }
+                }
+
+                async function update(username) {
+                  
+                 await fetch("http://45.94.4.168:3000/products/"+username)
+                    .then(response => response.json())
+                    .then(function (object) {
+                      data = object;
+                      console.log(object);
+                    });
+                    //console.log(data);
+                    if (data.chat.length > 0){
+                      console.log(data.chat[0]);
+                      if (
+                        !fb.includes(data.chat[0].uniqueId) && 
+                        !gs.includes(data.chat[0].uniqueId) &&
+                        !bjk.includes(data.chat[0].uniqueId) &&
+                        !ts.includes(data.chat[0]).uniqueId){
+                          if (data.chat[0].comment == "1") await fb.push(data.chat[0].uniqueId);
+                          if (data.chat[0].comment == "2") await gs.push(data.chat[0].uniqueId);
+                          if (data.chat[0].comment == "3") await bjk.push(data.chat[0].uniqueId);
+                          if (data.chat[0].comment == "4") await ts.push(data.chat[0].uniqueId);
+                      }
+                      
+                      await fetch("http://45.94.4.168:3000/products/"+username+"/chat/remove/0").then(response => response.json());
+                    }
+                    if (data.likes.length > 0){
+                      console.log(data.likes[0]);
+                      if (fb.includes(data.likes[0].uniqueId)) {
+                        await tasks.push(fbsend(data.likes[0].likeCount));
+                      }
+                      if (gs.includes(data.likes[0].uniqueId)) {
+                        await tasks.push(gssend(data.likes[0].likeCount));
+                      }
+                      if (bjk.includes(data.likes[0].uniqueId)) {
+                        await tasks.push(bjksend(data.likes[0].likeCount));
+                      }
+                      if (ts.includes(data.likes[0].uniqueId)) {
+                        await tasks.push(tssend(data.likes[0].likeCount));
+                      }
+                      await fetch("http://45.94.4.168:3000/products/"+username+"/likes/remove/0").then(response => response.json());
+                    }
+                    if (data.gifts.length > 0){
+                      console.log(data.gifts[0]);
+                      //rose
+                      if (data.gifts[0].giftId === 5655){
+                        if (fb.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Rose1',data.gifts[0].repeatCount));
+                        }
+                        if (gs.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Rose2',data.gifts[0].repeatCount));
+                        }
+                        if (bjk.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Rose3',data.gifts[0].repeatCount));
+                        }
+                        if (ts.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Rose4',data.gifts[0].repeatCount));
+                        }
+                      }
+                      //finger hearth
+                      if (data.gifts[0].giftId === 5487){
+                        if (fb.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','FingerHearth1',data.gifts[0].repeatCount));
+                        }
+                        if (gs.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','FingerHearth2',data.gifts[0].repeatCount));
+                        }
+                        if (bjk.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','FingerHearth3',data.gifts[0].repeatCount));
+                        }
+                        if (ts.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','FingerHearth4',data.gifts[0].repeatCount));
+                        }
+                      }
+                      //hearth
+                      if (data.gifts[0].giftId === 5282){
+                        if (fb.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Hearth1',data.gifts[0].repeatCount));
+                        }
+                        if (gs.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Hearth2',data.gifts[0].repeatCount));
+                        }
+                        if (bjk.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Hearth3',data.gifts[0].repeatCount));
+                        }
+                        if (ts.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Hearth4',data.gifts[0].repeatCount));
+                        }
+                      }
+                      //PERFUME 
+                      if (data.gifts[0].giftId === 5658){
+                        if (fb.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Perfume1',data.gifts[0].repeatCount));
+                        }
+                        if (gs.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Perfume2',data.gifts[0].repeatCount));
+                        }
+                        if (bjk.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Perfume3',data.gifts[0].repeatCount));
+                        }
+                        if (ts.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Perfume4',data.gifts[0].repeatCount));
+                        }
+                      }
+                      //DONUT 
+                      if (data.gifts[0].giftId === 5879){
+                        if (fb.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Donut1',data.gifts[0].repeatCount));
+                        }
+                        if (gs.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Donut2',data.gifts[0].repeatCount));
+                        }
+                        if (bjk.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Donut3',data.gifts[0].repeatCount));
+                        }
+                        if (ts.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Donut4',data.gifts[0].repeatCount));
+                        }
+                      }
+                      //TEA 
+                      if (data.gifts[0].giftId === 5303){
+                        if (fb.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Tea1',data.gifts[0].repeatCount));
+                        }
+                        if (gs.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Tea2',data.gifts[0].repeatCount));
+                        }
+                        if (bjk.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Tea3',data.gifts[0].repeatCount));
+                        }
+                        if (ts.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Tea4',data.gifts[0].repeatCount));
+                        }
+                      }
+                      //CONFETTI
+                      if (data.gifts[0].giftId === 5585){
+                        if (fb.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Confetti1',data.gifts[0].repeatCount));
+                        }
+                        if (gs.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Confetti2',data.gifts[0].repeatCount));
+                        }
+                        if (bjk.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Confetti3',data.gifts[0].repeatCount));
+                        }
+                        if (ts.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Confetti4',data.gifts[0].repeatCount));
+                        }
+                      }
+                      //SUNGLASS 
+                      if (data.gifts[0].giftId === 5509){
+                        if (fb.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Sunglass1',data.gifts[0].repeatCount));
+                        }
+                        if (gs.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Sunglass2',data.gifts[0].repeatCount));
+                        }
+                        if (bjk.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Sunglass3',data.gifts[0].repeatCount));
+                        }
+                        if (ts.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Sunglass4',data.gifts[0].repeatCount));
+                        }
+                      }
+                      //CORGI  
+                      if (data.gifts[0].giftId === 6267){
+                        if (fb.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Corgi1',data.gifts[0].repeatCount));
+                        }
+                        if (gs.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Corgi2',data.gifts[0].repeatCount));
+                        }
+                        if (bjk.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Corgi3',data.gifts[0].repeatCount));
+                        }
+                        if (ts.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Corgi4',data.gifts[0].repeatCount));
+                        }
+                      }
+                      //MONEY GUN  
+                      if (data.gifts[0].giftId === 5739){
+                        if (fb.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','MoneyGun1',data.gifts[0].repeatCount));
+                        }
+                        if (gs.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','MoneyGun2',data.gifts[0].repeatCount));
+                        }
+                        if (bjk.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','MoneyGun3',data.gifts[0].repeatCount));
+                        }
+                        if (ts.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','MoneyGun4',data.gifts[0].repeatCount));
+                        }
+                      }
+                      //TRAIN 
+                      if (data.gifts[0].giftId === 5978){
+                        if (fb.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Train1',data.gifts[0].repeatCount));
+                        }
+                        if (gs.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Train2',data.gifts[0].repeatCount));
+                        }
+                        if (bjk.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Train3',data.gifts[0].repeatCount));
+                        }
+                        if (ts.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(await unityInstance.SendMessage('GameObject (1)','Train4',data.gifts[0].repeatCount));
+                        }
+                      }
+                      //HAND HEARTH 
+                      if (data.gifts[0].giftId === 5924){
+                        if (fb.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(()=>{
+                            var c =data.gifts[0].repeatCount;
+                            var counter=setInterval(timer, 250); //1000 will  run it every 1 second
+                            async function timer()
+                            {
+                              c=c-1;
+                              await unityInstance.SendMessage('GameObject (1)','HandHearth');
+                              if (c <= 0)
+                              {
+                                tasks.splice( tasks.indexOf(0,1), 1 );
+                                clearInterval(counter);
+                                //counter ended, do something here
+                                return;
+                              }
+                              //Do code for showing the number of seconds here
+                            }
+                          });
+                        }
+                      }
+                      //MISHKA BEAR
+                      if (data.gifts[0].giftId === 5486){
+                        if (gs.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(()=>{
+                            var c =data.gifts[0].repeatCount;
+                            var counter=setInterval(timer, 250); //1000 will  run it every 1 second
+                            async function timer()
+                            {
+                              c=c-1;
+                              await unityInstance.SendMessage('GameObject (1)','MishkaBear');
+                              if (c <= 0)
+                              {
+                                tasks.splice( tasks.indexOf(0,1), 1 );
+                                clearInterval(counter);
+                                //counter ended, do something here
+                                return;
+                              }
+                              //Do code for showing the number of seconds here
+                            }
+                          });
+                        }
+                      }
+                      //HAND HEARTHS
+                      if (data.gifts[0].giftId === 5660){
+                        if (bjk.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(()=>{
+                            var c =data.gifts[0].repeatCount;
+                            var counter=setInterval(timer, 250); //1000 will  run it every 1 second
+                            async function timer()
+                            {
+                              c=c-1;
+                              await unityInstance.SendMessage('GameObject (1)','HandHearths');
+                              if (c <= 0)
+                              {
+                                tasks.splice( tasks.indexOf(0,1), 1 );
+                                clearInterval(counter);
+                                //counter ended, do something here
+                                return;
+                              }
+                              //Do code for showing the number of seconds here
+                            }
+                          });
+                        }
+                      }
+                      //FOAMY DRINK
+                      if (data.gifts[0].giftId === 6740){
+                        if (ts.includes(data.gifts[0].uniqueId)) {
+                          await tasks.push(()=>{
+                            var c =data.gifts[0].repeatCount;
+                            var counter=setInterval(timer, 250); //1000 will  run it every 1 second
+                            async function timer()
+                            {
+                              c=c-1;
+                              await unityInstance.SendMessage('GameObject (1)','FoamyDrink');
+                              if (c <= 0)
+                              {
+                                tasks.splice( tasks.indexOf(0,1), 1 );
+                                clearInterval(counter);
+                                //counter ended, do something here
+                                return;
+                              }
+                              //Do code for showing the number of seconds here
+                            }
+                          });
+                        }
+                      }
+                      await fetch("http://45.94.4.168:3000/products/"+username+"/gifts/remove/0").then(response => response.json());
+                    }
+            }
+              var username = "orrisgaming26";
+              async function updater(username) {
+                
+              }
+                setInterval(() => {
+                  update(username);
+                  return tasks;
+                }, 500);
+              }).catch((message) => {
+                alert(message);
+              });
+            };
+
+      document.body.appendChild(script);
+
+    </script>
+  </body>
+</html>
